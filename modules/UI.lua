@@ -164,29 +164,38 @@ return function(deps)
 		return gui
 	end
 
+	local function safeSet(inst, prop, value)
+		if not inst then return end
+		task.defer(function()
+			pcall(function()
+				inst[prop] = value
+			end)
+		end)
+	end
+
 	local function onSupportChanged(live)
 		if not gui.support then return end
 		if live.supported then
-			gui.support.Text = "SUPPORTED  " .. tostring(live.promptId)
-			gui.support.BackgroundColor3 = Color3.fromRGB(30, 110, 50)
+			safeSet(gui.support, "Text", "SUPPORTED  " .. tostring(live.promptId))
+			safeSet(gui.support, "BackgroundColor3", Color3.fromRGB(30, 110, 50))
 		elseif live.promptId then
-			gui.support.Text = "UNSUPPORTED — answer yourself"
-			gui.support.BackgroundColor3 = Color3.fromRGB(140, 50, 40)
+			safeSet(gui.support, "Text", "UNSUPPORTED — answer yourself")
+			safeSet(gui.support, "BackgroundColor3", Color3.fromRGB(140, 50, 40))
 		else
-			gui.support.Text = "waiting..."
-			gui.support.BackgroundColor3 = Color3.fromRGB(70, 70, 80)
+			safeSet(gui.support, "Text", "waiting...")
+			safeSet(gui.support, "BackgroundColor3", Color3.fromRGB(70, 70, 80))
 		end
 		if gui.prompt then
-			gui.prompt.Text = string.format("[%s] %s",
+			safeSet(gui.prompt, "Text", string.format("[%s] %s",
 				live.category ~= "" and live.category or "?",
-				live.promptText ~= "" and live.promptText or "(no prompt)")
+				live.promptText ~= "" and live.promptText or "(no prompt)"))
 		end
 		if gui.meta then
-			gui.meta.Text = string.format("id=%s  round=%s  phase=%s  done=%s",
+			safeSet(gui.meta, "Text", string.format("id=%s  round=%s  phase=%s  done=%s",
 				tostring(live.promptId or "?"),
 				tostring(live.round),
 				tostring(live.phase),
-				tostring(live.myDone))
+				tostring(live.myDone)))
 		end
 	end
 
@@ -194,7 +203,7 @@ return function(deps)
 	local function uiLog(msg)
 		table.insert(logs, 1, os.date("%H:%M:%S") .. " " .. tostring(msg))
 		while #logs > 30 do table.remove(logs) end
-		if gui.log then gui.log.Text = table.concat(logs, "\n") end
+		safeSet(gui.log, "Text", table.concat(logs, "\n"))
 	end
 
 	return {
