@@ -10,7 +10,7 @@
 	  loadstring(readfile("load.lua"))()
 ]]
 
-local BASE = "https://raw.githubusercontent.com/YOUR_USER/YOUR_REPO/main/"
+local BASE = "https://raw.githubusercontent.com/K01dBy4spam935h/Ball-Knowledge-Script/main/"
 local USE_HTTP = true
 local LOCAL_DIR = "modules/"
 
