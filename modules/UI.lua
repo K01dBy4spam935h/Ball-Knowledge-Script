@@ -76,7 +76,11 @@ return function(deps)
 			NewElements = true,
 			HideSearchBar = true,
 			Size = UDim2.fromOffset(560, 400),
+			ToggleKey = Enum.KeyCode.LeftControl,
 		})
+		pcall(function()
+			Window:SetToggleKey(Enum.KeyCode.LeftControl)
+		end)
 		gui.window = Window
 
 		-- ===== MAIN =====
