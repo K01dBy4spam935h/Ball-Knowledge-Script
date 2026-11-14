@@ -1,26 +1,77 @@
 --[[
 	Answer bank keyed by prompt.id
-	Each entry: list of { text, tier } sorted best-first at runtime.
-	Fill this from harvest dumps or by hand.
+	Each entry: { text, tier } — best tiers first.
 ]]
 
 local Bank = {
-	-- example seeds (replace/expand with harvest)
-	trees = {
-		{ text = "Mockernut Hickory", tier = "Rare" },
-		{ text = "Dawn Redwood", tier = "Obscure" },
-		{ text = "Wollemi Pine", tier = "Legendary" },
-		{ text = "Ginkgo", tier = "Uncommon" },
+	art_supplies = {
+		{ text = "Copper Plate", tier = "Obscure" },
+		{ text = "Blending Stump", tier = "Rare" },
+	},
+	beauty_products = {
+		{ text = "Hair Mask", tier = "Uncommon" },
+		{ text = "Lip Mask", tier = "Uncommon" },
+	},
+	breads = {
+		{ text = "Oat Bread", tier = "Rare" },
+		{ text = "Pumpernickel", tier = "Uncommon" },
+	},
+	car_models = {
+		{ text = "Club Wagon", tier = "Rare" },
+		{ text = "Skyline", tier = "Uncommon" },
+	},
+	crafts = {
+		{ text = "Quilling", tier = "Rare" },
+		{ text = "Embroidery", tier = "Familiar" },
 	},
 	dinosaurs = {
+		{ text = "Yi", tier = "Obscure" },
 		{ text = "Therizinosaurus", tier = "Rare" },
 		{ text = "Microraptor", tier = "Uncommon" },
 		{ text = "Carnotaurus", tier = "Uncommon" },
+		{ text = "Brontosaurus", tier = "Familiar" },
+	},
+	kitchen_tools = {
+		{ text = "Duck Press", tier = "Obscure" },
+		{ text = "Mandoline", tier = "Rare" },
+	},
+	landforms = {
+		{ text = "Fjord", tier = "Uncommon" },
+		{ text = "Bay", tier = "Familiar" },
+	},
+	mario_characters = {
+		{ text = "Thwomp", tier = "Familiar" },
+		{ text = "Professor E. Gadd", tier = "Familiar" },
 	},
 	math_topics = {
-		{ text = "Spherical Trigonometry", tier = "Rare" },
 		{ text = "Category Theory", tier = "Obscure" },
 		{ text = "p-adic Numbers", tier = "Obscure" },
+		{ text = "Spherical Trigonometry", tier = "Rare" },
+	},
+	multiples_of_7 = {
+		{ text = "91", tier = "Obscure" },
+		{ text = "70", tier = "Familiar" },
+	},
+	soups = {
+		{ text = "Kapustnica", tier = "Legendary" },
+		{ text = "Zuppa Gallurese", tier = "Obscure" },
+	},
+	transport = {
+		{ text = "Shikara", tier = "Rare" },
+		{ text = "Chairlift", tier = "Rare" },
+	},
+	trees = {
+		{ text = "Wollemi Pine", tier = "Legendary" },
+		{ text = "Dawn Redwood", tier = "Obscure" },
+		{ text = "Mockernut Hickory", tier = "Rare" },
+		{ text = "Ginkgo", tier = "Uncommon" },
+		{ text = "Apple Tree", tier = "Common" },
+	},
+	web_browsers = {
+		{ text = "Fennec", tier = "Rare" },
+		{ text = "Zen Browser", tier = "Uncommon" },
+		{ text = "Pale Moon", tier = "Uncommon" },
+		{ text = "LibreWolf", tier = "Uncommon" },
 	},
 }
 
