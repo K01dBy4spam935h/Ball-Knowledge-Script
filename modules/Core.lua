@@ -24,6 +24,7 @@ return function(deps)
 	}
 	local tried = {}
 	local submitting = false
+	local autoFlight = false
 
 	local function rank(t)
 		return CFG.preferTier[t] or 0
@@ -112,6 +113,7 @@ return function(deps)
 
 		if res.status == "locked" then
 			live.myDone = true
+			autoFlight = false
 			local display = tostring(res.display or text)
 			local tier = tostring(res.tier or "?")
 			log("LOCKED " .. display .. " (" .. tier .. ")")
@@ -127,19 +129,34 @@ return function(deps)
 			if CFG.retryOnRejected then
 				task.wait(0.3)
 				local n = Bank.next(live.promptId, tried[live.round])
-				if n then doSubmit(n) end
+				if n then
+					doSubmit(n)
+				else
+					autoFlight = false
+				end
+			else
+				autoFlight = false
 			end
 		elseif res.status == "skipped" then
 			live.myDone = true
+			autoFlight = false
 			log("skipped")
+		elseif res.status == "error" then
+			-- usually double-submit after lock; ignore if already done
+			if not live.myDone then
+				log("status error")
+				autoFlight = false
+			end
 		else
 			log("status " .. tostring(res.status))
+			autoFlight = false
 		end
 		if onSupportChanged then onSupportChanged(live) end
 	end
 
 	local function tryAuto()
 		if not CFG.auto then return end
+		if autoFlight or submitting then return end
 		if live.phase ~= "Answering" or live.myDone then return end
 		if not live.matchId or live.round < 1 then return end
 		if not live.supported then
@@ -148,11 +165,14 @@ return function(deps)
 		end
 		local ans = Bank.next(live.promptId, tried[live.round])
 		if not ans then log("bank empty") return end
+		autoFlight = true
 		local d = CFG.delayMin + math.random() * (CFG.delayMax - CFG.delayMin)
 		log(string.format("auto %.1fs -> %s", d, ans))
 		task.wait(d)
 		if live.phase == "Answering" and not live.myDone then
 			doSubmit(ans)
+		else
+			autoFlight = false
 		end
 	end
 
@@ -165,6 +185,7 @@ return function(deps)
 			if data.round ~= live.round then
 				tried[data.round] = {}
 				live.myDone = false
+				autoFlight = false
 			end
 			live.round = data.round
 		end
