@@ -5,211 +5,255 @@ return function(deps)
 	local Core = deps.Core
 	local log = deps.log
 
-	local UserInputService = game:GetService("UserInputService")
-	local CoreGui = game:GetService("CoreGui")
+	local Players = game:GetService("Players")
+	local RunService = game:GetService("RunService")
+	local Stats = game:GetService("Stats")
+	local LP = Players.LocalPlayer
 
-	local gui = {}
+	local gui = { window = nil }
+	local connections = {}
+	local supportParagraph, promptParagraph, metaParagraph
+	local playersP, pingP, fpsP, jobP, execP
+
+	local function detectExecutor()
+		for _, n in ipairs({ "identifyexecutor", "getexecutorname", "get_executor_name" }) do
+			local f = rawget(getfenv and getfenv() or _G, n)
+			if not f and getgenv then f = getgenv()[n] end
+			if type(f) == "function" then
+				local ok, a, b = pcall(f)
+				if ok and type(a) == "string" and a ~= "" then
+					return b and (a .. " " .. tostring(b)) or a
+				end
+			end
+		end
+		return "Unknown"
+	end
+
+	local function getPingMs()
+		local ok, v = pcall(function()
+			return Stats.Network.ServerStatsItem["Data Ping"]:GetValue()
+		end)
+		if ok and type(v) == "number" then
+			return math.floor(v + 0.5)
+		end
+		ok, v = pcall(function()
+			return LP:GetNetworkPing() * 1000
+		end)
+		if ok and type(v) == "number" then
+			return math.floor(v + 0.5)
+		end
+		return 0
+	end
+
+	local executorName = detectExecutor()
+
+	local function unload()
+		for _, c in ipairs(connections) do
+			pcall(function()
+				if typeof(c) == "RBXScriptConnection" then
+					c:Disconnect()
+				end
+			end)
+		end
+		table.clear(connections)
+		if gui.window then
+			pcall(function() gui.window:Destroy() end)
+			gui.window = nil
+		end
+		print("[BK] unloaded")
+	end
 
 	local function build()
-		pcall(function()
-			local o = CoreGui:FindFirstChild("BK_Exploit")
-			if o then o:Destroy() end
-		end)
+		local WindUI = loadstring(game:HttpGet(
+			"https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"
+		))()
 
-		local sg = Instance.new("ScreenGui")
-		sg.Name = "BK_Exploit"
-		sg.ResetOnSpawn = false
-		sg.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-		sg.Parent = CoreGui
+		local Window = WindUI:CreateWindow({
+			Title = "Ball Knowledge Script",
+			Author = "LarpSec · v1",
+			Folder = "BallKnowledgeScript",
+			Icon = "book-open",
+			NewElements = true,
+			HideSearchBar = true,
+			Size = UDim2.fromOffset(560, 400),
+		})
+		gui.window = Window
 
-		local frame = Instance.new("Frame")
-		frame.Size = UDim2.fromOffset(360, 460)
-		frame.Position = UDim2.new(0, 14, 0.5, -230)
-		frame.BackgroundColor3 = Color3.fromRGB(16, 18, 28)
-		frame.BorderSizePixel = 0
-		frame.Parent = sg
-		Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 10)
+		-- ===== MAIN =====
+		local Main = Window:Tab({
+			Title = "Main",
+			Icon = "monitor",
+		})
 
-		local title = Instance.new("TextLabel")
-		title.Size = UDim2.new(1, -16, 0, 26)
-		title.Position = UDim2.fromOffset(8, 6)
-		title.BackgroundTransparency = 1
-		title.Font = Enum.Font.GothamBold
-		title.TextSize = 15
-		title.TextColor3 = Color3.fromRGB(255, 210, 80)
-		title.TextXAlignment = Enum.TextXAlignment.Left
-		title.Text = "Ball Knowledge"
-		title.Parent = frame
+		Main:Section({ Title = "Server" })
 
-		gui.support = Instance.new("TextLabel")
-		gui.support.Size = UDim2.new(1, -16, 0, 26)
-		gui.support.Position = UDim2.fromOffset(8, 34)
-		gui.support.BackgroundColor3 = Color3.fromRGB(70, 70, 80)
-		gui.support.Font = Enum.Font.GothamBold
-		gui.support.TextSize = 12
-		gui.support.TextColor3 = Color3.new(1, 1, 1)
-		gui.support.Text = "waiting..."
-		gui.support.Parent = frame
-		Instance.new("UICorner", gui.support).CornerRadius = UDim.new(0, 6)
+		playersP = Main:Paragraph({ Title = "Players", Desc = "—" })
+		pingP = Main:Paragraph({ Title = "Ping", Desc = "—" })
+		fpsP = Main:Paragraph({ Title = "FPS", Desc = "—" })
+		jobP = Main:Paragraph({ Title = "JobId", Desc = "—" })
+		execP = Main:Paragraph({ Title = "Executor", Desc = executorName })
 
-		gui.prompt = Instance.new("TextLabel")
-		gui.prompt.Size = UDim2.new(1, -16, 0, 44)
-		gui.prompt.Position = UDim2.fromOffset(8, 66)
-		gui.prompt.BackgroundTransparency = 1
-		gui.prompt.Font = Enum.Font.Gotham
-		gui.prompt.TextSize = 12
-		gui.prompt.TextColor3 = Color3.fromRGB(220, 225, 235)
-		gui.prompt.TextWrapped = true
-		gui.prompt.TextXAlignment = Enum.TextXAlignment.Left
-		gui.prompt.TextYAlignment = Enum.TextYAlignment.Top
-		gui.prompt.Text = "(no prompt)"
-		gui.prompt.Parent = frame
+		-- ===== AUTO-FARM =====
+		local Farm = Window:Tab({
+			Title = "Auto-farm",
+			Icon = "zap",
+		})
 
-		gui.meta = Instance.new("TextLabel")
-		gui.meta.Size = UDim2.new(1, -16, 0, 16)
-		gui.meta.Position = UDim2.fromOffset(8, 110)
-		gui.meta.BackgroundTransparency = 1
-		gui.meta.Font = Enum.Font.Code
-		gui.meta.TextSize = 11
-		gui.meta.TextColor3 = Color3.fromRGB(130, 140, 160)
-		gui.meta.TextXAlignment = Enum.TextXAlignment.Left
-		gui.meta.Text = ""
-		gui.meta.Parent = frame
+		Farm:Section({ Title = "Status" })
+		supportParagraph = Farm:Paragraph({
+			Title = "Support",
+			Desc = "waiting...",
+		})
+		promptParagraph = Farm:Paragraph({
+			Title = "Prompt",
+			Desc = "(no prompt)",
+		})
+		metaParagraph = Farm:Paragraph({
+			Title = "Match",
+			Desc = "—",
+		})
 
-		local function btn(text, y, color, cb)
-			local b = Instance.new("TextButton")
-			b.Size = UDim2.new(1, -16, 0, 28)
-			b.Position = UDim2.fromOffset(8, y)
-			b.BackgroundColor3 = color
-			b.Font = Enum.Font.GothamBold
-			b.TextSize = 12
-			b.TextColor3 = Color3.new(1, 1, 1)
-			b.Text = text
-			b.Parent = frame
-			Instance.new("UICorner", b).CornerRadius = UDim.new(0, 6)
-			b.MouseButton1Click:Connect(cb)
-			return b
-		end
+		Farm:Section({ Title = "Controls" })
 
-		gui.autoBtn = btn(CFG.auto and "Auto: ON" or "Auto: OFF", 132,
-			CFG.auto and Color3.fromRGB(35, 130, 60) or Color3.fromRGB(70, 70, 80), function()
-			CFG.auto = not CFG.auto
-			gui.autoBtn.Text = CFG.auto and "Auto: ON" or "Auto: OFF"
-			gui.autoBtn.BackgroundColor3 = CFG.auto and Color3.fromRGB(35, 130, 60) or Color3.fromRGB(70, 70, 80)
-			log("auto " .. (CFG.auto and "on" or "off"))
-			if CFG.auto then task.spawn(Core.tryAuto) end
-		end)
+		Farm:Toggle({
+			Title = "Auto answer",
+			Desc = "Submit bank answers when supported",
+			Value = CFG.auto == true,
+			Callback = function(state)
+				CFG.auto = state
+				log("auto " .. (state and "on" or "off"))
+				if state and Core then
+					task.spawn(Core.tryAuto)
+				end
+			end,
+		})
 
-		btn("Submit best now", 166, Color3.fromRGB(45, 95, 170), function()
-			local live = Core.live
-			local a = Bank.next(live.promptId, nil)
-			if a then Core.doSubmit(a) else log("no bank answer") end
-		end)
+		Farm:Button({
+			Title = "Submit best",
+			Callback = function()
+				local live = Core.live
+				local a = Bank.next(live.promptId, nil)
+				if a then
+					Core.doSubmit(a)
+				else
+					log("no bank answer")
+					WindUI:Notify({ Title = "Bank", Content = "No answer for this prompt", Duration = 3 })
+				end
+			end,
+		})
 
-		local box = Instance.new("TextBox")
-		box.Size = UDim2.new(1, -16, 0, 26)
-		box.Position = UDim2.fromOffset(8, 200)
-		box.BackgroundColor3 = Color3.fromRGB(28, 30, 42)
-		box.Font = Enum.Font.Gotham
-		box.TextSize = 12
-		box.TextColor3 = Color3.new(1, 1, 1)
-		box.PlaceholderText = "manual answer..."
-		box.Text = ""
-		box.ClearTextOnFocus = false
-		box.Parent = frame
-		Instance.new("UICorner", box).CornerRadius = UDim.new(0, 6)
+		Farm:Button({
+			Title = "Dump questions",
+			Callback = function()
+				local _, n = Harvest.dump(Core.rank)
+				log("dumped " .. tostring(n) .. " prompts")
+				WindUI:Notify({ Title = "Dump", Content = tostring(n) .. " prompts printed", Duration = 3 })
+			end,
+		})
 
-		btn("Submit manual", 232, Color3.fromRGB(110, 60, 150), function()
-			local t = box.Text
-			if t and t:gsub("%s", "") ~= "" then Core.doSubmit(t) end
-		end)
+		Farm:Input({
+			Title = "Manual answer",
+			Placeholder = "type answer and press enter",
+			Callback = function(text)
+				if text and text:gsub("%s", "") ~= "" then
+					Core.doSubmit(text)
+				end
+			end,
+		})
 
-		btn("Dump new questions", 266, Color3.fromRGB(160, 110, 30), function()
-			local _, n = Harvest.dump(Core.rank)
-			log("dumped " .. tostring(n) .. " prompts")
-		end)
+		-- ===== SETTINGS =====
+		local Settings = Window:Tab({
+			Title = "Settings",
+			Icon = "settings",
+		})
 
-		gui.log = Instance.new("TextLabel")
-		gui.log.Size = UDim2.new(1, -16, 0, 140)
-		gui.log.Position = UDim2.fromOffset(8, 304)
-		gui.log.BackgroundColor3 = Color3.fromRGB(10, 12, 18)
-		gui.log.Font = Enum.Font.Code
-		gui.log.TextSize = 11
-		gui.log.TextColor3 = Color3.fromRGB(170, 180, 195)
-		gui.log.TextXAlignment = Enum.TextXAlignment.Left
-		gui.log.TextYAlignment = Enum.TextYAlignment.Top
-		gui.log.TextWrapped = true
-		gui.log.Text = ""
-		gui.log.Parent = frame
-		Instance.new("UICorner", gui.log).CornerRadius = UDim.new(0, 6)
+		Settings:Section({ Title = "Script" })
 
-		local dragging, origin, start
-		title.InputBegan:Connect(function(i)
-			if i.UserInputType == Enum.UserInputType.MouseButton1 then
-				dragging = true
-				origin = i.Position
-				start = frame.Position
+		Settings:Button({
+			Title = "Unload script",
+			Callback = function()
+				unload()
+			end,
+		})
+
+		Settings:Paragraph({
+			Title = "Notes",
+			Desc = "Unsupported prompts need a manual answer (still harvested).\nDump exports a table to paste into modules/Bank.lua.",
+		})
+
+		-- select main
+		pcall(function() Main:Select() end)
+
+		-- stats loop
+		local frames, fps, last = 0, 0, os.clock()
+		table.insert(connections, RunService.RenderStepped:Connect(function()
+			frames = frames + 1
+			local now = os.clock()
+			if now - last >= 0.5 then
+				fps = math.floor(frames / (now - last) + 0.5)
+				frames = 0
+				last = now
 			end
-		end)
-		title.InputEnded:Connect(function(i)
-			if i.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end
-		end)
-		UserInputService.InputChanged:Connect(function(i)
-			if dragging and i.UserInputType == Enum.UserInputType.MouseMovement then
-				local d = i.Position - origin
-				frame.Position = UDim2.new(start.X.Scale, start.X.Offset + d.X, start.Y.Scale, start.Y.Offset + d.Y)
+		end))
+
+		table.insert(connections, task.spawn(function()
+			while gui.window do
+				pcall(function()
+					if playersP and playersP.SetDesc then
+						playersP:SetDesc(tostring(#Players:GetPlayers()) .. " / " .. tostring(Players.MaxPlayers))
+					end
+					if pingP and pingP.SetDesc then
+						pingP:SetDesc(tostring(getPingMs()) .. " ms")
+					end
+					if fpsP and fpsP.SetDesc then
+						fpsP:SetDesc(tostring(fps))
+					end
+					if jobP and jobP.SetDesc then
+						jobP:SetDesc(tostring(game.JobId))
+					end
+				end)
+				task.wait(0.5)
 			end
-		end)
+		end))
 
 		return gui
 	end
 
-	local function safeSet(inst, prop, value)
-		if not inst then return end
-		task.defer(function()
-			pcall(function()
-				inst[prop] = value
-			end)
+	local function onSupportChanged(live)
+		pcall(function()
+			if supportParagraph and supportParagraph.SetDesc then
+				if live.supported then
+					supportParagraph:SetDesc("SUPPORTED · " .. tostring(live.promptId))
+				elseif live.promptId then
+					supportParagraph:SetDesc("UNSUPPORTED — answer yourself")
+				else
+					supportParagraph:SetDesc("waiting...")
+				end
+			end
+			if promptParagraph and promptParagraph.SetDesc then
+				promptParagraph:SetDesc(string.format("[%s] %s",
+					live.category ~= "" and live.category or "?",
+					live.promptText ~= "" and live.promptText or "(no prompt)"))
+			end
+			if metaParagraph and metaParagraph.SetDesc then
+				metaParagraph:SetDesc(string.format("%s · round %s · %s",
+					tostring(live.promptId or "—"),
+					tostring(live.round),
+					tostring(live.phase or "")))
+			end
 		end)
 	end
 
-	local function onSupportChanged(live)
-		if not gui.support then return end
-		if live.supported then
-			safeSet(gui.support, "Text", "SUPPORTED  " .. tostring(live.promptId))
-			safeSet(gui.support, "BackgroundColor3", Color3.fromRGB(30, 110, 50))
-		elseif live.promptId then
-			safeSet(gui.support, "Text", "UNSUPPORTED — answer yourself")
-			safeSet(gui.support, "BackgroundColor3", Color3.fromRGB(140, 50, 40))
-		else
-			safeSet(gui.support, "Text", "waiting...")
-			safeSet(gui.support, "BackgroundColor3", Color3.fromRGB(70, 70, 80))
-		end
-		if gui.prompt then
-			safeSet(gui.prompt, "Text", string.format("[%s] %s",
-				live.category ~= "" and live.category or "?",
-				live.promptText ~= "" and live.promptText or "(no prompt)"))
-		end
-		if gui.meta then
-			safeSet(gui.meta, "Text", string.format("id=%s  round=%s  phase=%s  done=%s",
-				tostring(live.promptId or "?"),
-				tostring(live.round),
-				tostring(live.phase),
-				tostring(live.myDone)))
-		end
-	end
-
-	local logs = {}
 	local function uiLog(msg)
-		table.insert(logs, 1, os.date("%H:%M:%S") .. " " .. tostring(msg))
-		while #logs > 30 do table.remove(logs) end
-		safeSet(gui.log, "Text", table.concat(logs, "\n"))
+		-- WindUI has no log panel; print only (Notify optional)
+		print("[BK] " .. tostring(msg))
 	end
 
 	return {
 		build = build,
 		onSupportChanged = onSupportChanged,
 		uiLog = uiLog,
+		unload = unload,
 		getGui = function() return gui end,
 	}
 end
